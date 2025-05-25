@@ -1,12 +1,11 @@
 import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
-  
-  // For demo purposes, we'll use a simulated auth flow
   checkAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
@@ -14,101 +13,155 @@ interface AuthState {
   updateProfile: (userData: Partial<User>) => Promise<void>;
 }
 
-// Mock user for demonstration
-const DEMO_USER: User = {
-  id: '1',
-  email: 'demo@careernest.com',
-  fullName: 'Jamie Smith',
-  avatar: 'https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=150',
-  headline: 'Senior Frontend Developer | React & TypeScript',
-  role: 'mentee',
-  isVerified: true,
-  createdAt: new Date().toISOString(),
-  profileComplete: true,
-};
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
   error: null,
-  
+
   checkAuth: async () => {
-    set({ loading: true });
-    
-    // Simulating an API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user exists in localStorage (in a real app, verify token with backend)
-    const savedUser = localStorage.getItem('careernest_user');
-    
-    if (savedUser) {
-      set({ user: JSON.parse(savedUser), loading: false });
-    } else {
-      // For demo, automatically log in the demo user
-      localStorage.setItem('careernest_user', JSON.stringify(DEMO_USER));
-      set({ user: DEMO_USER, loading: false });
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) throw error;
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        set({ 
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            ...profile
+          },
+          loading: false 
+        });
+      } else {
+        set({ user: null, loading: false });
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+      set({ error: 'Authentication failed', loading: false });
     }
   },
-  
+
   login: async (email: string, password: string) => {
     set({ loading: true, error: null });
     
     try {
-      // Simulating an API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, accept any credentials
-      localStorage.setItem('careernest_user', JSON.stringify(DEMO_USER));
-      set({ user: DEMO_USER, loading: false });
+      const { data: { session }, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        set({ 
+          user: {
+            id: session.user.id,
+            email: session.user.email!,
+            ...profile
+          },
+          loading: false 
+        });
+      }
     } catch (error) {
+      console.error('Login error:', error);
       set({ error: 'Invalid credentials', loading: false });
     }
   },
-  
-  register: async (email, password, fullName, role) => {
+
+  register: async (email: string, password: string, fullName: string, role: UserRole) => {
     set({ loading: true, error: null });
     
     try {
-      // Simulating an API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newUser: User = {
-        ...DEMO_USER,
+      const { data: { user }, error } = await supabase.auth.signUp({
         email,
-        fullName,
-        role,
-        profileComplete: false,
-      };
-      
-      localStorage.setItem('careernest_user', JSON.stringify(newUser));
-      set({ user: newUser, loading: false });
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (user) {
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: user.id,
+              full_name: fullName,
+              role,
+              created_at: new Date().toISOString()
+            }
+          ]);
+
+        if (profileError) throw profileError;
+
+        set({ 
+          user: {
+            id: user.id,
+            email: user.email!,
+            fullName,
+            role,
+            profileComplete: false,
+            createdAt: new Date().toISOString()
+          },
+          loading: false 
+        });
+      }
     } catch (error) {
+      console.error('Registration error:', error);
       set({ error: 'Registration failed', loading: false });
     }
   },
-  
+
   logout: async () => {
-    // Simulating an API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const { error } = await supabase.auth.signOut();
     
-    localStorage.removeItem('careernest_user');
+    if (error) {
+      console.error('Logout error:', error);
+    }
+
     set({ user: null });
   },
-  
+
   updateProfile: async (userData) => {
     set({ loading: true });
     
     try {
-      // Simulating an API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: { user } } = await supabase.auth.getUser();
       
-      const currentUser = localStorage.getItem('careernest_user');
-      if (currentUser) {
-        const updatedUser = { ...JSON.parse(currentUser), ...userData };
-        localStorage.setItem('careernest_user', JSON.stringify(updatedUser));
-        set({ user: updatedUser, loading: false });
-      }
+      if (!user) throw new Error('No user found');
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(userData)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      set(state => ({
+        user: state.user ? { ...state.user, ...userData } : null,
+        loading: false
+      }));
     } catch (error) {
+      console.error('Profile update error:', error);
       set({ error: 'Failed to update profile', loading: false });
     }
   }

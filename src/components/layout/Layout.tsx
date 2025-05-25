@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
-  Home, Briefcase, BookOpen, Users, MessageSquare, Bell, User, Search, Menu, X 
+  Home, Briefcase, BookOpen, Users, MessageSquare, Bell, Search,
+  Menu, X 
 } from 'lucide-react';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NotificationsDropdown } from './NotificationsDropdown';
@@ -20,7 +21,6 @@ export function Layout() {
     { name: 'Messages', path: '/messages', icon: MessageSquare },
   ];
 
-  // Close mobile menu when navigating
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -28,7 +28,7 @@ export function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo and Mobile Menu Button */}
@@ -38,11 +38,10 @@ export function Layout() {
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-500 lg:hidden"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
-                <span className="sr-only">Open main menu</span>
                 {mobileMenuOpen ? (
-                  <X className="block h-6 w-6" aria-hidden="true" />
+                  <X className="h-6 w-6" />
                 ) : (
-                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                  <Menu className="h-6 w-6" />
                 )}
               </button>
               
@@ -77,7 +76,6 @@ export function Layout() {
             
             {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
-              {/* Search */}
               <div className="hidden md:block">
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -91,16 +89,13 @@ export function Layout() {
                 </div>
               </div>
               
-              {/* Notifications */}
               <NotificationsDropdown />
-              
-              {/* Profile */}
               <ProfileDropdown />
             </div>
           </div>
         </div>
       </header>
-      
+
       {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-30 lg:hidden">
@@ -116,8 +111,7 @@ export function Layout() {
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-500"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <span className="sr-only">Close menu</span>
-                <X className="h-6 w-6" aria-hidden="true" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             
