@@ -1,15 +1,42 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, loading, error } = useAuthStore();
+  const { login, loading, error, clearError, isConfigured } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{email?: string; password?: string}>({});
+  
+  const validateForm = () => {
+    const errors: {email?: string; password?: string} = {};
+    
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearError();
+    
+    if (!validateForm()) {
+      return;
+    }
     
     try {
       await login(email, password);
@@ -18,6 +45,30 @@ export function Login() {
       console.error('Login failed:', error);
     }
   };
+
+  // Show configuration warning if Supabase is not configured
+  if (!isConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
+            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              Configuration Required
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Please set up your Supabase environment variables to continue.
+            </p>
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                You need to configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div>
@@ -27,8 +78,13 @@ export function Login() {
       
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-700">{error}</div>
+          <div className="rounded-md bg-red-50 p-4 border border-red-200">
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <div className="text-sm text-red-700">{error}</div>
+              </div>
+            </div>
           </div>
         )}
         
@@ -44,10 +100,18 @@ export function Login() {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (validationErrors.email) {
+                  setValidationErrors(prev => ({ ...prev, email: undefined }));
+                }
+              }}
+              className={`input ${validationErrors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Enter your email"
             />
+            {validationErrors.email && (
+              <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+            )}
           </div>
         </div>
         
@@ -55,18 +119,37 @@ export function Login() {
           <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
             Password
           </label>
-          <div className="mt-2">
+          <div className="mt-2 relative">
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (validationErrors.password) {
+                  setValidationErrors(prev => ({ ...prev, password: undefined }));
+                }
+              }}
+              className={`input pr-10 ${validationErrors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Enter your password"
             />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-400" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+            {validationErrors.password && (
+              <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
+            )}
           </div>
         </div>
         
@@ -94,9 +177,16 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full px-4 py-2"
+            className="btn-primary w-full px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Signing in...
+              </div>
+            ) : (
+              'Sign in'
+            )}
           </button>
         </div>
         
@@ -113,6 +203,7 @@ export function Login() {
           <button
             type="button"
             className="btn-outline w-full px-4 py-2"
+            disabled={loading}
           >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
