@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 
 export function Login() {
   const navigate = useNavigate();
@@ -14,9 +14,9 @@ export function Login() {
   const validateForm = () => {
     const errors: {email?: string; password?: string} = {};
     
-    if (!email) {
+    if (!email.trim()) {
       errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       errors.email = 'Please enter a valid email address';
     }
     
@@ -39,7 +39,7 @@ export function Login() {
     }
     
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate('/');
     } catch (error) {
       console.error('Login failed:', error);
@@ -108,6 +108,7 @@ export function Login() {
               }}
               className={`input ${validationErrors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Enter your email"
+              disabled={loading}
             />
             {validationErrors.email && (
               <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
@@ -135,11 +136,13 @@ export function Login() {
               }}
               className={`input pr-10 ${validationErrors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Enter your password"
+              disabled={loading}
             />
             <button
               type="button"
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
               onClick={() => setShowPassword(!showPassword)}
+              disabled={loading}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4 text-gray-400" />
@@ -177,13 +180,13 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary w-full px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {loading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              <>
+                <Loader2 className="animate-spin h-4 w-4 mr-2" />
                 Signing in...
-              </div>
+              </>
             ) : (
               'Sign in'
             )}

@@ -38,7 +38,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Session error:', error);
+        throw error;
+      }
       
       if (session?.user) {
         // Try to get profile data
@@ -92,8 +95,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (email: string, password: string) => {
     if (!isSupabaseConfigured()) {
-      set({ error: 'Supabase not configured' });
-      toast.error('Application not properly configured');
+      const errorMsg = 'Supabase not configured. Please set up your environment variables.';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
+      return;
+    }
+
+    // Validate inputs
+    if (!email || !password) {
+      const errorMsg = 'Email and password are required';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
+      return;
+    }
+
+    if (!email.includes('@')) {
+      const errorMsg = 'Please enter a valid email address';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
       return;
     }
 
@@ -101,11 +120,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     try {
       const { data: { session }, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
 
       if (session?.user) {
         // Get or create profile
@@ -130,16 +152,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             .select()
             .single();
 
-          if (createError) throw createError;
-          profile = newProfile;
+          if (createError) {
+            console.error('Profile creation error:', createError);
+            // Don't throw here, continue with basic user data
+          } else {
+            profile = newProfile;
+          }
         } else if (profileError) {
-          throw profileError;
+          console.error('Profile fetch error:', profileError);
+          // Don't throw here, continue with basic user data
         }
 
         const userData: User = {
           id: session.user.id,
           email: session.user.email!,
-          fullName: profile?.full_name || '',
+          fullName: profile?.full_name || session.user.user_metadata?.full_name || '',
           role: profile?.role || 'mentee',
           avatar: profile?.avatar_url,
           headline: profile?.headline,
@@ -165,9 +192,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      const errorMessage = error.message === 'Invalid login credentials' 
-        ? 'Invalid email or password' 
-        : error.message || 'Login failed';
+      let errorMessage = 'Login failed';
+      
+      if (error.message) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        } else if (msg.includes('email not confirmed')) {
+          errorMessage = 'Please check your email and confirm your account';
+        } else if (msg.includes('too many requests')) {
+          errorMessage = 'Too many login attempts. Please wait and try again';
+        } else {
+          errorMessage = error.message;
+        }
+      }
       
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
@@ -176,8 +214,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async (email: string, password: string, fullName: string, role: UserRole) => {
     if (!isSupabaseConfigured()) {
-      set({ error: 'Supabase not configured' });
-      toast.error('Application not properly configured');
+      const errorMsg = 'Supabase not configured. Please set up your environment variables.';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
+      return;
+    }
+
+    // Validate inputs
+    if (!email || !password || !fullName) {
+      const errorMsg = 'All fields are required';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
+      return;
+    }
+
+    if (!email.includes('@')) {
+      const errorMsg = 'Please enter a valid email address';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
+      return;
+    }
+
+    if (password.length < 6) {
+      const errorMsg = 'Password must be at least 6 characters long';
+      set({ error: errorMsg });
+      toast.error(errorMsg);
       return;
     }
 
@@ -185,17 +246,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     try {
       const { data: { user }, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
             role
           }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Registration error:', error);
+        throw error;
+      }
 
       if (user) {
         // Create profile
@@ -204,7 +268,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .insert([
             {
               id: user.id,
-              full_name: fullName,
+              full_name: fullName.trim(),
               role,
               created_at: new Date().toISOString()
             }
@@ -218,7 +282,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const userData: User = {
           id: user.id,
           email: user.email!,
-          fullName,
+          fullName: fullName.trim(),
           role,
           isVerified: false,
           createdAt: new Date().toISOString(),
@@ -235,11 +299,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           error: null
         });
 
-        toast.success('Account created successfully!');
+        toast.success('Account created successfully! Please check your email to confirm your account.');
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      const errorMessage = error.message || 'Registration failed';
+      let errorMessage = 'Registration failed';
+      
+      if (error.message) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('user already registered')) {
+          errorMessage = 'An account with this email already exists';
+        } else if (msg.includes('password should be at least')) {
+          errorMessage = 'Password must be at least 6 characters long';
+        } else if (msg.includes('invalid email')) {
+          errorMessage = 'Please enter a valid email address';
+        } else if (msg.includes('signup is disabled')) {
+          errorMessage = 'Registration is currently disabled';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
     }
@@ -303,10 +383,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 // Set up auth state listener
-supabase.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange(async (event, session) => {
   const { checkAuth } = useAuthStore.getState();
   
+  console.log('Auth state changed:', event, session?.user?.email);
+  
   if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-    checkAuth();
+    await checkAuth();
   }
 });
