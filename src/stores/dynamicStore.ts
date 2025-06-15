@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DatabaseService } from '../lib/database';
 import { RealtimeService } from '../lib/realtime';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 interface DynamicState {

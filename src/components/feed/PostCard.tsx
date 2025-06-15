@@ -8,9 +8,11 @@ import { CommentItem } from './CommentItem';
 
 interface PostCardProps {
   post: Post;
+  onLike?: () => void;
+  onComment?: (content: string) => void;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onLike, onComment }: PostCardProps) {
   const { likePost, fetchComments, addComment } = useFeedStore();
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
@@ -18,7 +20,11 @@ export function PostCard({ post }: PostCardProps) {
   const [loading, setLoading] = useState(false);
   
   const handleLike = () => {
-    likePost(post.id);
+    if (onLike) {
+      onLike();
+    } else {
+      likePost(post.id);
+    }
   };
   
   const handleToggleComments = async () => {
@@ -39,11 +45,15 @@ export function PostCard({ post }: PostCardProps) {
     e.preventDefault();
     
     if (commentText.trim()) {
-      await addComment(post.id, commentText);
-      
-      // Refresh comments
-      const updatedComments = useFeedStore.getState().comments[post.id] || [];
-      setComments(updatedComments);
+      if (onComment) {
+        onComment(commentText);
+      } else {
+        await addComment(post.id, commentText);
+        
+        // Refresh comments
+        const updatedComments = useFeedStore.getState().comments[post.id] || [];
+        setComments(updatedComments);
+      }
       
       setCommentText('');
     }

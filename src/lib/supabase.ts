@@ -35,11 +35,11 @@ export const supabase = createClient(
 );
 
 // Helper function to check if Supabase is properly configured
-export const isSupabaseConfigured = () => {
-  return supabaseUrl && supabaseAnonKey && 
+export const isSupabaseConfigured = (): boolean => {
+  return !!(supabaseUrl && supabaseAnonKey && 
          supabaseUrl !== defaultUrl && 
          supabaseAnonKey !== defaultKey &&
-         supabaseUrl.includes('supabase.co');
+         supabaseUrl.includes('supabase.co'));
 };
 
 // Auth helper functions with better error handling
