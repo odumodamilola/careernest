@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { PreferencesForm } from '../../components/onboarding/PreferencesForm';
+import { UserPreferences } from '../../lib/ai-matching';
+import { Brain, Sparkles, Target, Users } from 'lucide-react';
 
 export function OnboardingSteps() {
   const navigate = useNavigate();
@@ -60,13 +63,33 @@ export function OnboardingSteps() {
     setCurrentStep(currentStep - 1);
   };
   
-  const handleFinish = async () => {
+  const handleBasicProfileComplete = async () => {
     setLoading(true);
     
     try {
       await updateProfile({
         headline,
+        location: `${city}, ${country}`,
+        skills,
+        interests,
+        profileComplete: false // Will be set to true after AI matching
+      });
+      
+      setCurrentStep(4); // Move to AI preferences form
+    } catch (error) {
+      console.error('Failed to update basic profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePreferencesComplete = async (preferences: UserPreferences) => {
+    setLoading(true);
+    
+    try {
+      await updateProfile({
         profileComplete: true,
+        mentorship_preferences: preferences
       });
       
       navigate('/');
@@ -77,13 +100,35 @@ export function OnboardingSteps() {
     }
   };
   
+  if (currentStep === 4) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <Brain className="h-16 w-16 text-blue-600" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              AI-Powered Mentorship Matching
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Our advanced AI will analyze your preferences and instantly match you with the perfect mentors or mentees
+            </p>
+          </div>
+          
+          <PreferencesForm onComplete={handlePreferencesComplete} />
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="max-w-3xl mx-auto">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           {[1, 2, 3].map((step) => (
-            <div key={step} className="flex-1 flex flex-col items-center">
+            <div key={step} className="flex flex-col items-center">
               <div
                 className={`h-10 w-10 rounded-full flex items-center justify-center text-lg font-medium ${
                   currentStep >= step
@@ -91,12 +136,14 @@ export function OnboardingSteps() {
                     : 'bg-gray-200 text-gray-500'
                 }`}
               >
-                {step}
+                {step === 1 && <Users className="h-5 w-5" />}
+                {step === 2 && <Sparkles className="h-5 w-5" />}
+                {step === 3 && <Target className="h-5 w-5" />}
               </div>
               <div className="text-sm mt-2 text-gray-500">
                 {step === 1 && 'Basic Profile'}
                 {step === 2 && 'Skills & Interests'}
-                {step === 3 && 'Goals & Preferences'}
+                {step === 3 && 'Goals & AI Matching'}
               </div>
             </div>
           ))}
@@ -260,9 +307,9 @@ export function OnboardingSteps() {
         
         {currentStep === 3 && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Goals & Preferences</h2>
+            <h2 className="text-xl font-bold mb-4">Goals & AI Matching</h2>
             <p className="text-gray-500 mb-6">
-              Tell us what you're looking to achieve on CareerNest.
+              Tell us what you're looking to achieve, and our AI will find your perfect matches.
             </p>
             
             <div>
@@ -291,6 +338,30 @@ export function OnboardingSteps() {
                 ))}
               </div>
             </div>
+
+            <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3 mb-4">
+                <Brain className="h-8 w-8 text-blue-600" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">AI-Powered Matching</h3>
+                  <p className="text-sm text-gray-600">Get instantly matched with perfect mentors or mentees</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Skills compatibility analysis</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Personality matching</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Goal alignment scoring</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -315,11 +386,12 @@ export function OnboardingSteps() {
         ) : (
           <button
             type="button"
-            onClick={handleFinish}
+            onClick={handleBasicProfileComplete}
             disabled={loading}
-            className="btn-primary px-4 py-2"
+            className="btn-primary px-6 py-2 flex items-center space-x-2"
           >
-            {loading ? 'Finishing...' : 'Finish Setup'}
+            <Brain className="h-4 w-4" />
+            <span>{loading ? 'Setting up AI...' : 'Continue to AI Matching'}</span>
           </button>
         )}
       </div>
