@@ -105,7 +105,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           .from('posts')
           .select(`
             *,
-            author:profiles(*),
+            author:profiles!posts_author_id_fkey(*),
             likes:post_likes(count),
             comments:post_comments(count),
             shares:post_shares(count)
@@ -209,7 +209,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           .insert([postData])
           .select(`
             *,
-            author:profiles(*)
+            author:profiles!posts_author_id_fkey(*)
           `)
           .single();
 
@@ -239,7 +239,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           .select()
           .eq('post_id', postId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         let liked = false;
         if (existingLike) {
@@ -287,7 +287,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           .from('post_comments')
           .select(`
             *,
-            author:profiles(*),
+            author:profiles!post_comments_author_id_fkey(*),
             likes:comment_likes(count)
           `)
           .eq('post_id', postId)
@@ -353,7 +353,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           }])
           .select(`
             *,
-            author:profiles(*)
+            author:profiles!post_comments_author_id_fkey(*)
           `)
           .single();
 
@@ -394,7 +394,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
           .select()
           .eq('comment_id', commentId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         let liked = false;
         if (existingLike) {

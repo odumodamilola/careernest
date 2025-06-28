@@ -44,14 +44,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       
       if (session?.user) {
-        // Try to get profile data
+        // Try to get profile data - use maybeSingle() to handle missing profiles gracefully
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError) {
           console.error('Profile fetch error:', profileError);
         }
 
@@ -130,15 +130,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (session?.user) {
-        // Get or create profile
+        // Get or create profile - use maybeSingle() to handle missing profiles gracefully
         let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (profileError && profileError.code === 'PGRST116') {
-          // Profile doesn't exist, create one
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+        }
+
+        // If no profile exists, try to create one
+        if (!profile) {
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .insert([
@@ -150,7 +154,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               }
             ])
             .select()
-            .single();
+            .maybeSingle();
 
           if (createError) {
             console.error('Profile creation error:', createError);
@@ -158,9 +162,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           } else {
             profile = newProfile;
           }
-        } else if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          // Don't throw here, continue with basic user data
         }
 
         const userData: User = {
@@ -262,8 +263,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (user) {
-        // Create profile
-        const { error: profileError } = await supabase
+        // Create profile - use maybeSingle() for consistency
+        const { data: newProfile, error: profileError } = await supabase
           .from('profiles')
           .insert([
             {
@@ -272,7 +273,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               role,
               created_at: new Date().toISOString()
             }
-          ]);
+          ])
+          .select()
+          .maybeSingle();
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
