@@ -8,6 +8,7 @@ import { Courses } from './pages/Courses';
 import { Mentorship } from './pages/Mentorship';
 import { Messages } from './pages/Messages';
 import { Profile } from './pages/Profile';
+import { AIMentorship } from './pages/AIMentorship';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { OnboardingSteps } from './pages/auth/Onboarding';
@@ -33,7 +34,7 @@ function App() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
-          <img src="/logo.svg" alt="CareerNest" className="h-12 w-auto" />
+          <img src="https://i.ibb.co/35dJPQYC/69b30072-b992-4df8-93fe-f1590f420033.png" alt="CareerNest" className="h-12 w-auto" />
           <p className="mt-4 text-gray-500">Loading CareerNest...</p>
         </div>
       </div>
@@ -58,6 +59,7 @@ function App() {
         <Route path="/jobs" element={user ? <Jobs /> : <Navigate to="/login" />} />
         <Route path="/courses" element={user ? <Courses /> : <Navigate to="/login" />} />
         <Route path="/mentorship" element={user ? <Mentorship /> : <Navigate to="/login" />} />
+        <Route path="/ai-mentorship" element={user ? <AIMentorship /> : <Navigate to="/login" />} />
         <Route path="/messages" element={user ? <Messages /> : <Navigate to="/login" />} />
         <Route path="/profile/:id?" element={user ? <Profile /> : <Navigate to="/login" />} />
       </Route>

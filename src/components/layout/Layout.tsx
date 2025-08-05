@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
   Home, Briefcase, BookOpen, Users, MessageSquare, Bell, Search,
-  Menu, X 
+  Menu, X, Brain
 } from 'lucide-react';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NotificationsDropdown } from './NotificationsDropdown';
@@ -18,6 +18,7 @@ export function Layout() {
     { name: 'Jobs', path: '/jobs', icon: Briefcase },
     { name: 'Courses', path: '/courses', icon: BookOpen },
     { name: 'Mentorship', path: '/mentorship', icon: Users },
+    { name: 'AI Mentor', path: '/ai-mentorship', icon: Brain },
     { name: 'Messages', path: '/messages', icon: MessageSquare },
   ];
 
@@ -46,7 +47,7 @@ export function Layout() {
               </button>
               
               <Link to="/" className="flex items-center space-x-2">
-                <img src="/logo.svg" alt="CareerNest" className="h-8 w-auto" />
+                <img src="https://i.ibb.co/35dJPQYC/69b30072-b992-4df8-93fe-f1590f420033.png" alt="CareerNest" className="h-8 w-auto" />
                 <span className="hidden text-xl font-bold text-primary-900 md:block">
                   CareerNest
                 </span>
@@ -103,7 +104,7 @@ export function Layout() {
           <div className="relative flex h-full w-[80%] max-w-xs flex-col overflow-y-auto bg-white pb-12 pt-5 shadow-xl">
             <div className="flex items-center justify-between px-4">
               <Link to="/" className="flex items-center space-x-2">
-                <img src="/logo.svg" alt="CareerNest" className="h-8 w-auto" />
+                <img src="https://i.ibb.co/35dJPQYC/69b30072-b992-4df8-93fe-f1590f420033.png" alt="CareerNest" className="h-8 w-auto" />
                 <span className="text-xl font-bold text-primary-900">CareerNest</span>
               </Link>
               <button

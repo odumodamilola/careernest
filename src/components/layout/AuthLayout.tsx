@@ -13,7 +13,7 @@ export function AuthLayout() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <img src="/logo.svg" alt="CareerNest" className="mx-auto h-12 w-auto" />
+          <img src="https://i.ibb.co/35dJPQYC/69b30072-b992-4df8-93fe-f1590f420033.png" alt="CareerNest" className="mx-auto h-12 w-auto" />
           <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
             CareerNest
           </h2>

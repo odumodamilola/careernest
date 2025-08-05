@@ -77,6 +77,7 @@ export function Register() {
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
+            <img src="https://i.ibb.co/35dJPQYC/69b30072-b992-4df8-93fe-f1590f420033.png" alt="CareerNest" className="mx-auto h-8 w-auto mt-4" />
             <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Configuration Required
             </h2>
