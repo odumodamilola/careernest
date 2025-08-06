@@ -101,6 +101,7 @@ export const useFeedStore = create<FeedState>((set, get) => {
       set({ loading: true, error: null });
       
       try {
+        // Build query with explicit foreign key relationships to avoid ambiguity
         let query = supabase
           .from('posts')
           .select(`

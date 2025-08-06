@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, Sparkles, Target, TrendingUp, Users, Award, Zap, BookOpen } from 'lucide-react';
-import { AIMentorChatbot } from '../components/ai/AIMentorChatbot';
+import { EnterpriseAIMentorChatbot } from '../components/ai/EnterpriseAIMentorChatbot';
 import { AIMatchingEngine } from '../components/ai/AIMatchingEngine';
 import { CareerPathGenerator } from '../components/ai/CareerPathGenerator';
 import { SkillGapDetector } from '../components/ai/SkillGapDetector';
@@ -38,7 +38,7 @@ export function AIMentorship() {
   const renderActiveComponent = () => {
     switch (activeTab) {
       case 'chatbot':
-        return <AIMentorChatbot />;
+        return <EnterpriseAIMentorChatbot />;
       case 'matching':
         return <AIMatchingEngine />;
       case 'career-paths':

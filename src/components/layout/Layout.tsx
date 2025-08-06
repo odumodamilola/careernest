@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ProfileDropdown } from './ProfileDropdown';
 import { NotificationsDropdown } from './NotificationsDropdown';
+import { CreditUsageWidget } from '../dashboard/CreditUsageWidget';
 import { useAuthStore } from '../../stores/authStore';
 
 export function Layout() {

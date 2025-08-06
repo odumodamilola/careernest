@@ -1,18 +1,28 @@
 import { create } from 'zustand';
+import { authService, EnterpriseUser } from '../lib/auth/authService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { User, UserRole } from '../types';
 import { toast } from 'sonner';
 
 interface AuthState {
-  user: User | null;
+  user: EnterpriseUser | null;
   loading: boolean;
   error: string | null;
   isConfigured: boolean;
+  
+  // Actions
   checkAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
+  register: (email: string, password: string, userData: any) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (userData: Partial<User>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  updateProfile: (userData: Partial<EnterpriseUser>) => Promise<void>;
+  
+  // Credit management
+  checkCredits: (requiredCredits: number) => Promise<boolean>;
+  consumeCredits: (credits: number, actionType: string, feature?: string) => Promise<boolean>;
+  
+  // Utility
   clearError: () => void;
 }
 
@@ -36,53 +46,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const user = await authService.getCurrentUser();
       
-      if (error) {
-        console.error('Session error:', error);
-        throw error;
-      }
-      
-      if (session?.user) {
-        // Try to get profile data - use maybeSingle() to handle missing profiles gracefully
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        const userData: User = {
-          id: session.user.id,
-          email: session.user.email!,
-          fullName: profile?.full_name || session.user.user_metadata?.full_name || '',
-          role: profile?.role || 'mentee',
-          avatar: profile?.avatar_url,
-          headline: profile?.headline,
-          bio: profile?.bio,
-          location: profile?.location,
-          website: profile?.website,
-          socialLinks: profile?.social_links || {},
-          skills: profile?.skills || [],
-          languages: profile?.languages || [],
-          interests: profile?.interests || [],
-          isVerified: profile?.is_verified || false,
-          createdAt: profile?.created_at || session.user.created_at,
-          profileComplete: !!profile?.full_name
-        };
-
-        set({ 
-          user: userData,
-          loading: false,
-          error: null,
-          isConfigured: true
-        });
-      } else {
-        set({ user: null, loading: false, error: null });
-      }
+      set({ 
+        user,
+        loading: false,
+        error: null,
+        isConfigured: true
+      });
     } catch (error: any) {
       console.error('Auth check error:', error);
       set({ 
@@ -109,111 +80,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
-    if (!email.includes('@')) {
-      const errorMsg = 'Please enter a valid email address';
-      set({ error: errorMsg });
-      toast.error(errorMsg);
-      return;
-    }
-
     set({ loading: true, error: null });
     
     try {
-      const { data: { session }, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password
+      const result = await authService.loginUser(email, password);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      set({ 
+        user: result.user,
+        loading: false,
+        error: null
       });
 
-      if (error) {
-        console.error('Login error:', error);
-        throw error;
-      }
-
-      if (session?.user) {
-        // Get or create profile - use maybeSingle() to handle missing profiles gracefully
-        let { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        // If no profile exists, try to create one
-        if (!profile) {
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: session.user.id,
-                full_name: session.user.user_metadata?.full_name || '',
-                role: 'mentee',
-                created_at: new Date().toISOString()
-              }
-            ])
-            .select()
-            .maybeSingle();
-
-          if (createError) {
-            console.error('Profile creation error:', createError);
-            // Don't throw here, continue with basic user data
-          } else {
-            profile = newProfile;
-          }
-        }
-
-        const userData: User = {
-          id: session.user.id,
-          email: session.user.email!,
-          fullName: profile?.full_name || session.user.user_metadata?.full_name || '',
-          role: profile?.role || 'mentee',
-          avatar: profile?.avatar_url,
-          headline: profile?.headline,
-          bio: profile?.bio,
-          location: profile?.location,
-          website: profile?.website,
-          socialLinks: profile?.social_links || {},
-          skills: profile?.skills || [],
-          languages: profile?.languages || [],
-          interests: profile?.interests || [],
-          isVerified: profile?.is_verified || false,
-          createdAt: profile?.created_at || session.user.created_at,
-          profileComplete: !!profile?.full_name
-        };
-
-        set({ 
-          user: userData,
-          loading: false,
-          error: null
-        });
-
-        toast.success('Successfully logged in!');
-      }
+      toast.success('Successfully logged in!');
     } catch (error: any) {
       console.error('Login error:', error);
-      let errorMessage = 'Login failed';
-      
-      if (error.message) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('invalid login credentials')) {
-          errorMessage = 'Invalid email or password';
-        } else if (msg.includes('email not confirmed')) {
-          errorMessage = 'Please check your email and confirm your account';
-        } else if (msg.includes('too many requests')) {
-          errorMessage = 'Too many login attempts. Please wait and try again';
-        } else {
-          errorMessage = error.message;
-        }
-      }
+      const errorMessage = error.message || 'Login failed';
       
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
     }
   },
 
-  register: async (email: string, password: string, fullName: string, role: UserRole) => {
+  register: async (email: string, password: string, userData: any) => {
     if (!isSupabaseConfigured()) {
       const errorMsg = 'Supabase not configured. Please set up your environment variables.';
       set({ error: errorMsg });
@@ -222,22 +114,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Validate inputs
-    if (!email || !password || !fullName) {
+    if (!email || !password || !userData.fullName) {
       const errorMsg = 'All fields are required';
-      set({ error: errorMsg });
-      toast.error(errorMsg);
-      return;
-    }
-
-    if (!email.includes('@')) {
-      const errorMsg = 'Please enter a valid email address';
-      set({ error: errorMsg });
-      toast.error(errorMsg);
-      return;
-    }
-
-    if (password.length < 6) {
-      const errorMsg = 'Password must be at least 6 characters long';
       set({ error: errorMsg });
       toast.error(errorMsg);
       return;
@@ -246,82 +124,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      const { data: { user }, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            role
-          }
-        }
+      const result = await authService.registerUser(email, password, userData);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      set({ 
+        user: result.user,
+        loading: false,
+        error: null
       });
 
-      if (error) {
-        console.error('Registration error:', error);
-        throw error;
-      }
-
-      if (user) {
-        // Create profile - use maybeSingle() for consistency
-        const { data: newProfile, error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: user.id,
-              full_name: fullName.trim(),
-              role,
-              created_at: new Date().toISOString()
-            }
-          ])
-          .select()
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Don't throw here as the user was created successfully
-        }
-
-        const userData: User = {
-          id: user.id,
-          email: user.email!,
-          fullName: fullName.trim(),
-          role,
-          isVerified: false,
-          createdAt: new Date().toISOString(),
-          profileComplete: false,
-          socialLinks: {},
-          skills: [],
-          languages: [],
-          interests: []
-        };
-
-        set({ 
-          user: userData,
-          loading: false,
-          error: null
-        });
-
-        toast.success('Account created successfully! Please check your email to confirm your account.');
-      }
+      toast.success('Account created successfully! Please check your email to confirm your account.');
     } catch (error: any) {
       console.error('Registration error:', error);
-      let errorMessage = 'Registration failed';
-      
-      if (error.message) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('user already registered')) {
-          errorMessage = 'An account with this email already exists';
-        } else if (msg.includes('password should be at least')) {
-          errorMessage = 'Password must be at least 6 characters long';
-        } else if (msg.includes('invalid email')) {
-          errorMessage = 'Please enter a valid email address';
-        } else if (msg.includes('signup is disabled')) {
-          errorMessage = 'Registration is currently disabled';
-        } else {
-          errorMessage = error.message;
-        }
-      }
+      const errorMessage = error.message || 'Registration failed';
       
       set({ error: errorMessage, loading: false });
       toast.error(errorMessage);
@@ -330,23 +148,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Logout error:', error);
-        toast.error('Logout failed');
-      } else {
-        set({ user: null, error: null });
-        toast.success('Successfully logged out');
-      }
+      await authService.logoutUser();
+      set({ user: null, error: null });
+      toast.success('Successfully logged out');
     } catch (error: any) {
       console.error('Logout error:', error);
       toast.error('Logout failed');
     }
   },
 
+  resetPassword: async (email: string) => {
+    try {
+      await authService.resetPassword(email);
+      toast.success('Password reset email sent. Please check your inbox.');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Failed to send password reset email');
+    }
+  },
+
+  updatePassword: async (newPassword: string) => {
+    try {
+      await authService.updatePassword(newPassword);
+      toast.success('Password updated successfully');
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      toast.error(error.message || 'Failed to update password');
+    }
+  },
+
   updateProfile: async (userData) => {
-    if (!get().user) {
+    const currentUser = get().user;
+    if (!currentUser) {
       set({ error: 'No user logged in' });
       return;
     }
@@ -354,22 +187,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) throw new Error('No user found');
-
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
-          ...userData,
+          profile_data: { ...currentUser.profileData, ...userData },
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', currentUser.id);
 
       if (error) throw error;
 
       set(state => ({
-        user: state.user ? { ...state.user, ...userData } : null,
+        user: state.user ? { 
+          ...state.user, 
+          profileData: { ...state.user.profileData, ...userData }
+        } : null,
         loading: false,
         error: null
       }));
@@ -382,16 +214,64 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  checkCredits: async (requiredCredits: number) => {
+    const user = get().user;
+    if (!user) return false;
+
+    try {
+      const result = await authService.checkCredits(user.id, requiredCredits);
+      return result.canProceed;
+    } catch (error) {
+      console.error('Credit check error:', error);
+      return false;
+    }
+  },
+
+  consumeCredits: async (credits: number, actionType: string, feature?: string) => {
+    const user = get().user;
+    if (!user) return false;
+
+    try {
+      const success = await authService.consumeCredits(user.id, credits, actionType, feature);
+      
+      if (success) {
+        // Update local state
+        set(state => ({
+          user: state.user ? {
+            ...state.user,
+            creditsUsed: state.user.creditsUsed + credits
+          } : null
+        }));
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Credit consumption error:', error);
+      return false;
+    }
+  },
+
   clearError: () => set({ error: null })
 }));
 
-// Set up auth state listener
+// Set up auth state listener with enterprise features
 supabase.auth.onAuthStateChange(async (event, session) => {
   const { checkAuth } = useAuthStore.getState();
   
   console.log('Auth state changed:', event, session?.user?.email);
   
-  if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+  if (event === 'SIGNED_IN') {
+    await checkAuth();
+    
+    // Update user activity
+    if (session?.user) {
+      await supabase.rpc('update_user_activity', {
+        user_uuid: session.user.id
+      });
+    }
+  } else if (event === 'SIGNED_OUT') {
+    await checkAuth();
+  } else if (event === 'TOKEN_REFRESHED') {
     await checkAuth();
   }
 });

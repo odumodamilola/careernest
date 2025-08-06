@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { AuthLayout } from './components/layout/AuthLayout';
+import { EnterpriseLogin } from './components/auth/EnterpriseLogin';
+import { EnterpriseRegister } from './components/auth/EnterpriseRegister';
 import { Feed } from './pages/Feed';
 import { Jobs } from './pages/Jobs';
 import { Courses } from './pages/Courses';
@@ -9,8 +11,6 @@ import { Mentorship } from './pages/Mentorship';
 import { Messages } from './pages/Messages';
 import { Profile } from './pages/Profile';
 import { AIMentorship } from './pages/AIMentorship';
-import { Login } from './pages/auth/Login';
-import { Register } from './pages/auth/Register';
 import { OnboardingSteps } from './pages/auth/Onboarding';
 import { QATestRunner } from './components/qa/QATestRunner';
 import { useAuthStore } from './stores/authStore';
@@ -48,8 +48,8 @@ function App() {
       
       {/* Auth Routes */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<EnterpriseLogin />} />
+        <Route path="/register" element={<EnterpriseRegister />} />
         <Route path="/onboarding" element={<OnboardingSteps />} />
       </Route>
       
